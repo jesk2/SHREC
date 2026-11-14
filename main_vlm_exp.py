@@ -30,6 +30,8 @@ parser.add_argument("--model", type=str, default='gemini-pro-vision')
 parser.add_argument("--data_path", type=str, default='./output_datasets')
 parser.add_argument("--seed", type=str, default=0)
 parser.add_argument("--video", action="store_true")
+parser.add_argument("--max_samples", type=int, default=0,
+                    help="Fork addition: run only the first N samples after shuffling (0 = all)")
 parser.add_argument("--csv_path", type=str, default='../shrec_empathic.csv')
 parser.add_argument("--images_dir", type=str, default='../shrec_empathic')
 parser.add_argument("--hf_repo_id", type=str, default='MIT-personal-robots/shrec_empathic',
@@ -49,6 +51,8 @@ with open(os.path.join(data_path,task_type), 'rb') as pkl_file:
     processed_dataset = pickle.load(pkl_file)
 
 random.shuffle(processed_dataset)
+if args.max_samples:
+    processed_dataset = processed_dataset[:args.max_samples]
 
 images_dir = args.images_dir 
 df = pd.read_csv(args.csv_path)
@@ -112,7 +116,7 @@ if model_name == 'GPT4o_MINI_Lang':
 if model_name == 'GPT4o_Lang':
     from utils_gpt import * 
     model = Agent(base_prompt, model_info='gpt-4o', inference_type='lang-only', task_type=args.task_type)
-if model_name in ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-3.1-pro-preview', 'gpt-realtime-2', 'llava_video_next', 'llava_video_next_7b_dpo', 'o1', 'o1-mini']:
+if model_name.startswith('parley-') or model_name in ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-3.1-pro-preview', 'gpt-realtime-2', 'llava_video_next', 'llava_video_next_7b_dpo', 'o1', 'o1-mini']:
     from utils_gpt import * 
     model = Agent(base_prompt, model_info=model_name, inference_type=None, task_type=args.task_type)
 if model_name in ['GPT4o_Image_few_shot']:
@@ -166,13 +170,13 @@ for i, sample in enumerate(processed_dataset):
 
 
 
-        if model_name in ['o1', 'o1-mini','gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-3.1-pro-preview', 'gpt-realtime-2', 'llava_video_next', 'llava_video_next_7b_dpo', 'GPT4o_Image_cot', 'GPT4o_Image_few_shot', "GPT4o_MINI_Lang", "GPT4o_Lang", "GPT4o_MINI_Image", "GPT4o_Image"]:
+        if model_name.startswith('parley-') or model_name in ['o1', 'o1-mini','gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-3.1-pro-preview', 'gpt-realtime-2', 'llava_video_next', 'llava_video_next_7b_dpo', 'GPT4o_Image_cot', 'GPT4o_Image_few_shot', "GPT4o_MINI_Lang", "GPT4o_Lang", "GPT4o_MINI_Image", "GPT4o_Image"]:
             print('extract video for gemini/openai models')
             base64Frames = process_images_base64(img_path_list)
 
             vid_path = ""
             # gemini-3.1-pro uses frames directly, not a reconstructed video
-            if 'gemini' in model_name and model_name != 'gemini-3.1-pro-preview':
+            if 'gemini' in model_name and model_name != 'gemini-3.1-pro-preview' and not model_name.startswith('parley-'):
                 vid_path = fill_and_write_video(frames_dir, './tmp', fps=frame_rate)
             
             if 'transcript' in sample.keys():
@@ -422,7 +426,7 @@ for i, sample in enumerate(processed_dataset):
     else:
         img_path_list.append(full_prompt)
 
-    if model_name in ['o1', 'o1-mini', 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-3.1-pro-preview', 'gpt-realtime-2', 'llava_video_next', 'llava_video_next_7b_dpo', 'GPT4o_Image_cot', "GPT4o_MINI_Lang", "GPT4o_Lang", "GPT4o_MINI_Image", "GPT4o_Image"]:
+    if model_name.startswith('parley-') or model_name in ['o1', 'o1-mini', 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-3.1-pro-preview', 'gpt-realtime-2', 'llava_video_next', 'llava_video_next_7b_dpo', 'GPT4o_Image_cot', "GPT4o_MINI_Lang", "GPT4o_Lang", "GPT4o_MINI_Image", "GPT4o_Image"]:
         response = model.chat(full_prompt, img_frames=base64Frames, transcription=transcription, vid_path=vid_path, examples=None)
     elif model_name == 'GPT4o_Image_few_shot':
         examples = get_few_shot_examples(processed_dataset, sample)

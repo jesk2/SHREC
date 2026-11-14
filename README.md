@@ -23,6 +23,12 @@
 
 Neither fix changes the output for transcripts without these problems: the Empathic detection set is byte-identical before and after.
 
+`main_vlm_exp.py` can also run models through MIT's Parley API:
+
+- **`--model parley-<model id>`**, e.g. `--model parley-gemini-3.1-pro`. It sends frames + text (no audio), the same input as the `gemini-3.1-pro-preview` path. Set `PARLEY_KEY` (and optionally `PARLEY_BASE_URL`) in the environment or `.env`.
+- **`--max_samples N`** runs only the first N samples after shuffling (default 0 = all).
+- `OPENAI_API_KEY` is now optional, so the script loads when only Gemini or Parley models are used.
+
 ## 🧠 SHREC Dataset Summary
 
 The Social Human Robot Embodied Conversation (SHREC) Dataset is a unique, one-of-a-kind large-scale, real-world benchmark designed to evaluate **social reasoning** in **language** and **vision-language models** through physically embodied human-robot interactions (HRI). It contains:

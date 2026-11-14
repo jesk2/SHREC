@@ -24,9 +24,10 @@ import random
 from transformers import pipeline
 
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+# Fork change: the OpenAI key is optional, so models that do not use it (Gemini, Parley) still load.
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY") or "not-set")
 genai.configure(api_key=os.environ.get("GOOGLE_GENAI_API_KEY") or os.environ.get("GEMINI_KEY", ""))
-openai.api_key=os.environ["OPENAI_API_KEY"]
+openai.api_key=os.environ.get("OPENAI_API_KEY", "")
 
 
 from transformers import AutoModel
@@ -374,7 +375,10 @@ class Agent:
         self.inference_type = inference_type
         self.task_type = task_type
 
-        if 'gemini' in self.model_info:
+        if self.model_info.startswith('parley-'):
+            pass  # Fork addition: served by MIT's Parley API, called per request in chat()
+
+        elif 'gemini' in self.model_info:
             self.model = genai.GenerativeModel(self.model_info)
             self._chat = self.model.start_chat(history=[])
 
@@ -531,6 +535,34 @@ class Agent:
                     ),
                 )
                 return response.text or ""
+            except Exception as e:
+                print(e)
+                return "[ERROR]"
+
+        elif self.model_info.startswith('parley-'):
+            # Fork addition: any model served by MIT's Parley API (OpenAI-style chat
+            # completions), named "parley-<model id>", e.g. parley-gemini-3.1-pro.
+            # Frames + text, no audio: the same input as the gemini-3.1-pro-preview path.
+            # Needs PARLEY_KEY (and optionally PARLEY_BASE_URL) in the environment or .env.
+            try:
+                import requests
+                if self.inference_type == 'cot':
+                    message += " Let's think step-by-step."
+                content = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{frame}"}}
+                           for frame in (img_frames or [])]
+                content.append({"type": "text", "text": message})
+                base_url = os.environ.get("PARLEY_BASE_URL", "https://parley.api.mit.edu/v1")
+                r = requests.post(
+                    f"{base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {os.environ.get('PARLEY_KEY', '')}"},
+                    json={"model": self.model_info[len('parley-'):], "max_tokens": 4000,
+                          "messages": [
+                              {"role": "system", "content": "You are a socially intelligent agent. Be concise."},
+                              {"role": "user", "content": content}]},
+                    timeout=600,
+                )
+                r.raise_for_status()
+                return r.json()["choices"][0]["message"].get("content") or ""
             except Exception as e:
                 print(e)
                 return "[ERROR]"
