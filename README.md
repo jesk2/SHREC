@@ -14,6 +14,15 @@
 - Frames for benchmark experiments are now pulled directly from the HF dataset repos (`download_hf_frames()` in `utils.py`) instead of requiring a local video file or a manually pre-populated images directory.
 - Added support for two new models: `gpt-realtime-2` and `gemini-3.1-pro-preview`.
 
+### Changes in this fork (jesk2)
+
+`main_vlm_get_data.py` used to crash on the released Wellness Home and Wellness Dorm data. Two fixes:
+
+- **Sessions with no `AI Agent` / `User` speaker labels are left out and listed.** Some released transcripts label speakers `Speaker A` / `Speaker B`, so the code cannot tell which one is the robot (1 session in Wellness Home, 13 in Wellness Dorm). Whether the paper's test set included these sessions is not known.
+- **Only well-formed `(HH:MM:SS)` marks are read as timestamps** (`get_transcript` in `utils.py`). In a few released transcripts the name anonymization overwrote part of a timestamp, e.g. `(00:01:3{{NAME}}` (1 session in Wellness Home, 3 in Wellness Dorm).
+
+Neither fix changes the output for transcripts without these problems: the Empathic detection set is byte-identical before and after.
+
 ## 🧠 SHREC Dataset Summary
 
 The Social Human Robot Embodied Conversation (SHREC) Dataset is a unique, one-of-a-kind large-scale, real-world benchmark designed to evaluate **social reasoning** in **language** and **vision-language models** through physically embodied human-robot interactions (HRI). It contains:

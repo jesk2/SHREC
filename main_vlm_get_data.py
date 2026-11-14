@@ -1,5 +1,6 @@
 import pickle
 import os
+import re
 import random
 import cv2
 from pathlib import Path
@@ -56,6 +57,17 @@ def encode_image(image_path):
 
 
 df = pd.read_csv(data_path)
+
+# Fork change: some released transcripts label their speakers "Speaker A" / "Speaker B"
+# instead of "AI Agent" / "User A". get_transcript() cannot tell which one is the robot in
+# those, and used to crash on them (UnboundLocalError: speaker). Leave those sessions out
+# and list them. Whether the paper's test set included them is not known.
+_has_roles = df['transcript'].astype(str).str.contains(r'^\s*(?:AI Agent|User)', regex=True, flags=re.M)
+if (~_has_roles).any():
+    print(f"[skipped] {(~_has_roles).sum()} session(s) with no AI Agent / User speaker labels:")
+    for _name in df.loc[~_has_roles, 'file_name']:
+        print("   ", _name)
+df = df[_has_roles].reset_index(drop=True)
 
 task_dataset_overlap = {}
 task_dataset_no_annotation = {}

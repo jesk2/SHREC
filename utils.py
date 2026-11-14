@@ -1,6 +1,7 @@
 
 import pdb
 import ast
+import re
 import pandas as pd
 import os
 import cv2
@@ -230,7 +231,13 @@ def get_transcript(timestamp_dict, transcriptions, session_name = None, data_pat
             speaker = transcription.replace("\n", "")
         elif '(' in transcription and ')' in transcription and ':' in transcription:
             
-            times_list = find_all_indexes(transcription, "(")
+            # Fork change: only well-formed "(HH:MM:SS)" marks count as timestamps. In a few
+            # released transcripts the name anonymization overwrote part of a timestamp
+            # (e.g. "(00:01:3{{NAME}}"), which used to crash the float() parse below. Text
+            # after a damaged mark now stays with the previous word.
+            times_list = [m.start() for m in re.finditer(r"\(\d\d:\d\d:\d\d\)", transcription)]
+            if not times_list:
+                continue
             all_words = ""
             for i, time in enumerate(times_list):
                 
